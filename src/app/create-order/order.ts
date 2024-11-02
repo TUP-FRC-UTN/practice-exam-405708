@@ -1,5 +1,6 @@
 export interface Product {
     productId: string;
+    name:string;
     quantity: number;
     stock: number;
     price: number;

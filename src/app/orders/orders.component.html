@@ -1,24 +1,44 @@
-<table class="table">
-    <thead>
-      <tr>
-        <th scope="col">Codigo</th>
-        <th scope="col">Cliente</th>
-        <th scope="col">Email</th>
-        <th scope="col">Cantidad</th>
-        <th scope="col">Fecha</th>
-        <th scope="col">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-        @for(order of orders; track order; let index = $index){
-            <tr>
-                <td>{{ order.id }}</td>
-                <td>{{ order.customerName }}</td>
-                <td>{{ order.email }}</td>
-                <td>{{ order.products.length }}</td>
-                <td>{{ order.timestamp | date:'dd/MM/yyyy' }}</td>
-                <td>{{ order.total }}</td>
-              </tr>
-        }
-    </tbody>
+<div class="container">
+
+  <div class="text-end">
+    <button class="btn btn-primary float-end" (click)="toNew()">Nueva Orden</button>
+  </div>
+  <div class="row col-3">
+    <h1>Orders</h1>
+  </div>
+  
+    
+  <div class="container" style="border: 1px solid lightgray; border-radius: 10px;">
+    <input type="text" 
+    placeholder="Search by customer name or email..." 
+    class="form-control" style="margin: 10px;" 
+    id="search"
+    [formControl]="searchTerm">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Codigo</th>
+          <th scope="col">Cliente</th>
+          <th scope="col">Email</th>
+          <th scope="col">Cantidad</th>
+          <th scope="col">Fecha</th>
+          <th scope="col">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+          @for(order of orders; track order; let index = $index){
+              <tr>
+                  <td>{{ order.id }}</td>
+                  <td>{{ order.customerName }}</td>
+                  <td>{{ order.email }}</td>
+                  <td>{{ order.products.length }}</td>
+                  <td>{{ order.timestamp | date:'dd/MM/yyyy' }}</td>
+                  <td>{{ order.total }}</td>
+                </tr>
+          }
+      </tbody>
   </table>
+  </div>
+
+</div>
+

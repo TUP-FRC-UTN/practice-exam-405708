@@ -24,6 +24,6 @@ export class OrderService {
   }
 
   getOrdersByEmail(email:string){
-
+    return this.http.get<any>(this.url + `/orders?email=${email}`)
   }
 }

@@ -1,65 +1,167 @@
 <div class="container">
-<form [formGroup]="reactiveForm" (ngSubmit)="save()">
-    <div class="mb-3">
+  <form [formGroup]="reactiveForm" (ngSubmit)="save()">
+    <div class="d-flex">
+      <div class="col-6 mb-3">
         <label for="customerName" class="form-label">Nombre</label>
-        <input type="text" class="form-control" id="customerName" formControlName="customerName">
-        @if (reactiveForm.controls["customerName"]; as customerName) {
-          @if (customerName.touched && customerName.invalid) {
-            <span>Debe ingresar el campo nombre</span>
-            }
-        }
-    </div>
-    <div class="mb-3">
+        <input
+          type="text"
+          class="form-control"
+          id="customerName"
+          formControlName="customerName"
+          [ngClass]="onValidate('customerName')"
+        />
+        @if (reactiveForm.controls["customerName"]; as customerName) { @if
+          (customerName.touched && customerName.invalid) {
+            <span class="invalid-feedback">Debe ingresar el campo nombre</span>
+          } 
+      }
+      </div>
+      <div class="col-6 mb-3">
         <label for="email" class="form-label">Email</label>
-        <input formControlName="email" type="text" class="form-control" id="email">
-        @if (reactiveForm.controls["email"]; as email) {
-            @if(email.touched && email.errors?.['required']){
-                <span>Debe ingresar el campo email</span>
+        <input
+          formControlName="email"
+          type="text"
+          class="form-control me-3"
+          id="email"
+          [ngClass]="onValidate('email')"
+        />
+        @if (reactiveForm.controls["email"]; as email) { @if(email.touched &&
+        email.errors?.['required']){
+        <div class="invalid-feedback">El email es requerido</div>
+        } @if(email.errors?.['email']){
+        <span class="invalid-feedback">El formato no es correcto</span>
+        } }
+      </div>
+    </div>
+
+    <br />
+    <br />
+    <div style="border: 1px solid lightgrey">
+      <div class="text-end">
+        <button
+          type="button"
+          class="btn btn-primary float-end"
+          (click)="onNewEvent()"
+        >
+          +
+        </button>
+      </div>
+      <div class="row col-3">
+        <h4>Productos:</h4>
+      </div>
+
+      <div class="row" formArrayName="products">
+        @for (item of products.controls; track $index) {
+        <div class="d-flex">
+          <div [formGroupName]="$index" class="d-flex">
+            <h6>Producto #{{ $index + 1 }}</h6>
+            <div class="col-3">
+              <label for="name" class="form-label">Nombre</label>
+              <select class="form-select" id="name" formControlName="productId">
+                <!--Cargador por API-->
+                @for(product of selectProducts; track product; let index =
+                $index){
+                <option [value]="product?.id">{{ product.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-3">
+              <label for="quantity" class="form-label">Cantidad</label>
+              <input
+                formControlName="quantity"
+                type="number"
+                class="form-control"
+                id="quantity"
+                [ngClass]="onValidate('products.' + $index + '.quantity')"
+              />
+            </div>
+
+            <!-- Validación de errores para cantidad -->
+            @if(item.get('quantity')?.invalid &&
+            (item.get('quantity')?.touched)){
+            <span class="invalid-feedback"
+              >Debe ingresar el campo cantidad</span
+            >
             }
-            @if(email.errors?.['email']){
-                <span>El formato no es correcto</span>
-            }
+            <div class="col-3">
+              <label for="price" class="form-label">Precio</label>
+              <input
+                formControlName="price"
+                type="number"
+                class="form-control"
+                id="price"
+                readonly
+              />
+            </div>
+            <div class="col-2">
+              <label for="stock" class="form-label">Stock</label>
+              <input
+                formControlName="stock"
+                type="number"
+                class="form-control"
+                id="stock"
+                readonly
+              />
+            </div>
+            <div class="col-1">
+              <button
+                type="button"
+                class="btn btn-danger"
+                (click)="onDeleteEvent($index)"
+              >
+                X
+              </button>
+            </div>
+          </div>
+        </div>
+        }
+        @if(reactiveForm.hasError('duplicateProduct', 'products')){
+          <div class="text-danger">
+            El producto ya fue seleccionado
+          </div>
         }
       </div>
-      <div>
-        <h4>Productos:</h4>
-        <button type="button" class="btn btn-success" (click)="onNewEvent()">Añadir</button>
-        <div class="row" formArrayName="products">
-          @for (item of products.controls; track $index) {
-            <div class="col-6">
-              <div [formGroupName]="$index">
-                <h6>Producto #{{$index + 1}}</h6>
-                <label for="name" class="form-label">Cantidad</label>
-                <select class="form-select" id="name" formControlName="name"><!--Cargador por API-->
-                    @for(product of selectProducts; track product; let index = $index){
-                        <option [value]="product?.id">{{ product.name }}</option>
-                    }
-                </select>
-                <div>
-                  <label for="quantity" class="form-label">Cantidad</label>
-                  <input formControlName="quantity" type="number" class="form-control" id="quantity">
-                </div>
-                <div>
-                    <label for="price" class="form-label">Precio</label>
-                    <input formControlName="price" type="number" class="form-control" id="price" readonly>
-                </div>
-                <div>
-                    <label for="stock" class="form-label">Stock</label>
-                    <input formControlName="stock" type="number" class="form-control" id="stock" readonly>
-                </div>   
-              </div>
-              <button type="button" class="btn btn-danger" (click)="onDeleteEvent($index)">Eliminar</button>
-            </div>
-          }
-        </div>
-        
+    </div>
+
+    <br />
+    <br />
+
+    <div style="border: 1px solid lightgrey">
+      <div class="row col-5">
+        <h4>Productos Seleccionados</h4>
+        @for(product of reactiveForm.value.products; track product){
+        <i></i>
+        <p>
+          {{ product.name }} - Cantidad: {{ product.quantity }} - Precio:
+          {{ product.price }} - Stock: {{ product.stock }}
+        </p>
+        }
       </div>
-       <button class="btn btn-primary" type="submit" 
-      [disabled]="reactiveForm.invalid">
-        Guardar
-      </button> 
-      
-</form>
+    </div>
+
+    <br />
+    <br />
+
+    <div style="border: 1px solid lightgrey">
+      <div class="row">
+        <div class="col-6"></div>
+        <div class="col-4">
+          <h6>Total</h6>
+          @if(descuento){
+            <span style="color: green">10% descuento aplicado</span>
+          }
+          </div>
+        <div class="col-2 text-end">$ {{total}}</div>
+      </div>
+    </div>
+    <button
+      class="btn btn-primary float-end"
+      type="submit"
+      [disabled]="reactiveForm.invalid"
+    >
+      Crear Orden
+    </button>
+  </form>
 </div>
 
-<!--{{reactiveForm.value | json}}-->
+<!--{{reactiveForm.value.products | json}}-->

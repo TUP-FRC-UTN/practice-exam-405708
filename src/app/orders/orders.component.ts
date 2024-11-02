@@ -14,46 +14,47 @@ import { Order } from '../create-order/order';
 })
 export class OrdersComponent implements OnInit {
   private readonly orderService: OrderService = inject(OrderService)
-  searchTerm = new FormControl('')
-  orders: Order[]=[];
+  searchTerm = new FormControl('');
+  orders: Order[] = [];
+  allOrders: Order[] = []; // Lista completa de órdenes
 
-  constructor(private router: Router){
-
-  }
-
+  constructor(private router: Router) {}
 
   ngOnInit(): void {
     this.getOrders();
-    //Hay que subscribirse a los filtros para ver los cambios
-    //this.filterOrders().subscribe()
+    this.filterOrders(); // Llamada para suscribirse a los cambios en el input
   }
 
-  getOrders(){
+  getOrders() {
     this.orderService.getOrders().subscribe({
       next: (response) => {
         this.orders = response;
+        this.allOrders = response; // Copia de la lista completa
       },
       error: (err) => {
         console.error('Error:', err);
       }
-    })
+    });
   }
 
-  toNew(){
+  toNew() {
     this.router.navigate(['/create-order']);
   }
 
-  //Filtro
-  filterOrders(){
-    if(!this.searchTerm.value){
-      this.getOrders();
-    }
-    return this.searchTerm.valueChanges.subscribe(searchTerm =>{
-      this.orders.filter(order => {
-        order.customerName.toLowerCase().includes(this.searchTerm.value ?? '') ||
-        order.email.toLowerCase().includes(this.searchTerm.value ?? '')
-      })
-    })
+  filterOrders() {
+    this.searchTerm.valueChanges.subscribe(searchTerm => {
+      if (searchTerm === null || searchTerm.trim() === '') {
+        // Si el término de búsqueda está vacío, mostramos todas las órdenes
+        this.orders = [...this.allOrders];
+      } else {
+        // Filtramos las órdenes basándonos en el término de búsqueda
+        const lowerCaseTerm = searchTerm.toLowerCase();
+        this.orders = this.allOrders.filter(order => 
+          order.customerName.toLowerCase().includes(lowerCaseTerm) ||
+          order.email.toLowerCase().includes(lowerCaseTerm)
+        );
+      }
+    });
   }
 
 }

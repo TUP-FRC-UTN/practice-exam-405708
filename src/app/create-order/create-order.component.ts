@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
-import { AsyncValidatorFn, ControlContainer, Form, FormArray, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { Component, inject, OnInit } from '@angular/core';
+import { AbstractControl, AsyncValidatorFn, ControlContainer, Form, FormArray, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { OrderService } from '../services/order.service';
 import { Router } from '@angular/router';
-import { timestamp } from 'rxjs';
+import { catchError, map, Observable, of, timestamp } from 'rxjs';
 import { Order, Product } from './order';
 
 @Component({
@@ -13,10 +13,12 @@ import { Order, Product } from './order';
   templateUrl: './create-order.component.html',
   styleUrl: './create-order.component.css'
 })
-export class CreateOrderComponent {
+export class CreateOrderComponent implements OnInit {
   isDisabled:boolean = true;
   descuento:boolean = false;
   total = 0;
+  maxstock =40;
+  productsQuantity = 0;
   private orderService:OrderService = inject(OrderService);
   private readonly router = inject(Router)
 
@@ -24,9 +26,12 @@ export class CreateOrderComponent {
   reactiveForm:FormGroup = new FormGroup({
     customerName: new FormControl("", [Validators.required, Validators.minLength(3)]),
     email: new FormControl("", [Validators.required, Validators.email]), //Validar API
-    products: new FormArray([],[Validators.required, this.uniqueProductValidator]) //Validacion Sincronica
+    products: new FormArray([],[Validators.required, this.uniqueProductValidator, Validators.maxLength(10)]) //Validacion Sincronica
   })
 
+  ngOnInit(): void {
+  this.reactiveForm.get('email')?.setAsyncValidators(this.emailOrderLimitValidator());  
+  }
 
   get products() {
     return this.reactiveForm.controls["products"] as FormArray;
@@ -37,7 +42,7 @@ export class CreateOrderComponent {
     const eventForm = new FormGroup({
       productId: new FormControl("", [Validators.required]), //Select API
       name: new FormControl(""),
-      quantity: new FormControl("", [Validators.required, Validators.min(0), Validators.max(50)]),//Falta el max(stock)
+      quantity: new FormControl("", [Validators.required, Validators.min(0), Validators.max(120)]),//Falta el max(stock)
       price: new FormControl("", [Validators.required]), // Inicializado como deshabilitado
       stock: new FormControl("", [Validators.required]) // Inicializado como deshabilitado
     });
@@ -45,15 +50,22 @@ export class CreateOrderComponent {
     //Me suscribo al cambio de valor del name, para actualizar los otros campos
     eventForm.get("productId")?.valueChanges.subscribe((selectedValue) => {
       this.updatePriceAndStock(eventForm, selectedValue);
-      this.calculateTotal()
+      this.calculateTotal();
     });
 
     eventForm.get("quantity")?.valueChanges.subscribe((selectedValue) => {
-      this.calculateTotal()
+      this.calculateTotal();
     });
 
+    this.productsQuantity = this.productsQuantity + 1;
     formArray.push(eventForm);
     this.chargeSelect()
+  }
+
+  
+  onDeleteEvent(index: number) {
+    this.products.removeAt(index);
+    this.productsQuantity = this.productsQuantity - 1;
   }
 
   //Metodo cuando cambie el valor del select para asignar valores a stock y price
@@ -67,6 +79,18 @@ export class CreateOrderComponent {
     eventForm.get("stock")?.setValue(selectedProduct.stock);
     eventForm.get("name")?.setValue(selectedProduct.name);
   }
+
+    //METODO PARA ACTUALIZAR MAX DE STOCK
+    this.maxstock = selectedProduct.stock
+    const quantityControl = eventForm.get('quantity');
+    // Actualiza el validador 'max' del campo 'quantity' 
+    //con el valor actual de 'stock'
+    quantityControl?.setValidators([
+      Validators.required,
+      Validators.min(0),
+      Validators.max(this.maxstock) // Setea el stock como valor máximo
+    ]);
+
 }
 
   selectProducts:any[] = [];
@@ -81,15 +105,20 @@ export class CreateOrderComponent {
     })
   }
 
-  onDeleteEvent(index: number) {
-    this.products.removeAt(index);
-  }
 
   //COMPLETAR
   generatedCode: string = "defaultCode";
   generateCode(){
-    /*const emailSuffix = email.slice(-4);
-    const timestamp = "";*/
+    //Genere un código único para el pedido basado en: 
+    //Toma la primera letra y la hace Mayus
+    const initialOfName = this.reactiveForm.value.customerName.charAt(0).toUpperCase()
+    //Toma las ultimas 4 letras el correo
+    const emailSuffix = this.reactiveForm.value.email.slice(-4);
+    // Genera el timestamp en segundos
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    // Combinar para el formato que quiero
+    this.generatedCode = `${initialOfName}${emailSuffix}${timestamp}`;
     return this.generatedCode;
   }
 
@@ -100,18 +129,17 @@ export class CreateOrderComponent {
       customerName: this.reactiveForm.value.customerName,
       email: this.reactiveForm.value.email,
       products: this.reactiveForm.value.products,
-      total: 0,
+      total: this.total,
       orderCode:generatedOrderCode,
-      timestamp: new Date().toDateString()
+      timestamp: new Date().toISOString()
     }
 
-    orderData.products.forEach((product: Product) => {
-      orderData.total += product.price * product.quantity;
-    });
 
     this.orderService.post(orderData).subscribe({
       next: (response) => {
         console.log('Orden enviada correctamente', response);
+        this.total = 0;
+        this.productsQuantity = 0;
         this.router.navigate(['/orders']);
       },
       error: (error) => {
@@ -155,40 +183,19 @@ export class CreateOrderComponent {
   }
 
 
-  
-  /*
-  VER DEL REPO DEL PROFE
-  https://github.com/TUP-FRC-UTN/practice-exam-class
-  2.3 Validación Asincrónica del Email
-      Implementar un validador asincrónico personalizado para el campo email que:
-      Utilice el endpoint GET /orders?email={email} para verificar el historial de pedidos
-      Valide que el cliente no haya realizado más de 3 pedidos en las últimas 24 horas  
-  
-  //Cuando lo ponemos en el formControl:
-  nuevo [] por las Async
-
   emailOrderLimitValidator(): AsyncValidatorFn | null{
-    //return
-
-    //sub al service
-    //mapear lista de ordenes
-    //comparar lo del dia 3 maximo por dia
+    return (control: AbstractControl) : Observable<ValidationErrors | null> => {
+      return this.orderService.getOrdersByEmail(control.value).pipe(
+        map(data =>{
+          return data.length > 3 ? {orderLimit : true} : null
+        }),
+        catchError(() => {
+          alert("error en la api")
+          return of({apiCaida : true})
+        })
+      )
+    }
   }
-  */
-   //TODO:
-  /*
-    2.0 Cantidad (no exceder stock)
 
-    2.1 Implementar validación:
-      La cantidad total de productos no debe exceder 10 unidades
-
-
-      5. Algoritmo de Procesamiento
-    Implementar:
-    Valide que hay stock suficiente para cada producto
-    Genere un código único para el pedido basado en: primera letra del nombre del cliente + últimos 4 caracteres del email + timestamp
-    Por cada producto nuevo debe agregar una fecha de compra al producto
-    Debe validar que el usuario no pueda realizar más de tres pedidos en las últimas 24 horas utilizando el endpoint de filtrado por email
-  */
 
 }
